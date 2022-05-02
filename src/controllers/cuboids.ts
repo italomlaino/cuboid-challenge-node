@@ -90,3 +90,20 @@ export const update = async (
     return res.status(HttpStatus.OK).json(updatedCuboid);
   });
 };
+
+export const remove = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
+  const id = req.params.id;
+  return await knex.transaction(async (trx: Transaction) => {
+    const cuboid = await Cuboid.query(trx).findById(id).withGraphFetched('bag');
+    if (_.isNil(cuboid)) {
+      return res.sendStatus(HttpStatus.NOT_FOUND);
+    }
+
+    await cuboid.$query(trx).delete();
+
+    return res.sendStatus(HttpStatus.OK);
+  });
+};
