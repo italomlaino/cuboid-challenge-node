@@ -15,7 +15,7 @@ export const list = async (req: Request, res: Response): Promise<Response> => {
 export const get = async (req: Request, res: Response): Promise<Response> => {
   const id = req.params.id;
   const cuboid = await Cuboid.query().findById(id).withGraphFetched('bag');
-  if (!cuboid) {
+  if (_.isNil(cuboid)) {
     return res.sendStatus(HttpStatus.NOT_FOUND);
   }
 
