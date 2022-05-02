@@ -12,6 +12,7 @@ router
   .get('/cuboids', cuboids.list)
   .get('/cuboids/:id', cuboids.get)
   .patch('/cuboids/:id', cuboids.update)
+  .delete('/cuboids/:id', cuboids.remove)
   .post('/cuboids', cuboids.create);
 
 export default router;
