@@ -1,7 +1,9 @@
 import { Request, Response } from 'express';
 import * as HttpStatus from 'http-status-codes';
-import { Id } from 'objection';
-import { Cuboid } from '../models';
+import { Id, Transaction } from 'objection';
+import { Bag, Cuboid } from '../models';
+import knex from '../db/knex';
+import _ from 'lodash';
 
 export const list = async (req: Request, res: Response): Promise<Response> => {
   const ids = req.query.ids as Id[];
@@ -26,12 +28,29 @@ export const create = async (
 ): Promise<Response> => {
   const { width, height, depth, bagId } = req.body;
 
-  const cuboid = await Cuboid.query().insert({
-    width,
-    height,
-    depth,
-    bagId,
-  });
+  return await knex.transaction(async (trx: Transaction) => {
+    const bag = await Bag.query(trx)
+      .findById(bagId)
+      .withGraphFetched('cuboids');
 
-  return res.status(HttpStatus.CREATED).json(cuboid);
+    if (_.isNil(bag)) {
+      return res.sendStatus(HttpStatus.NOT_FOUND);
+    }
+
+    const volume = width * height * depth;
+    if (volume > bag.availableVolume) {
+      return res
+        .status(HttpStatus.UNPROCESSABLE_ENTITY)
+        .json({ message: 'Insufficient capacity in bag' });
+    }
+
+    const cuboid = await Cuboid.query(trx).insert({
+      width,
+      height,
+      depth,
+      bagId,
+    });
+
+    return res.status(HttpStatus.CREATED).json(cuboid);
+  });
 };
