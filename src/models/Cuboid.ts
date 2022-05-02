@@ -1,4 +1,4 @@
-import { Id, RelationMappings } from 'objection';
+import { Id, ModelOptions, QueryContext, RelationMappings } from 'objection';
 import { Bag } from './Bag';
 import Base from './Base';
 
@@ -10,6 +10,24 @@ export class Cuboid extends Base {
   bagId?: Id;
   bag!: Bag;
   volume!: number;
+
+  async $beforeUpdate(
+    opt: ModelOptions,
+    queryContext: QueryContext
+  ): Promise<void> {
+    await super.$beforeUpdate(opt, queryContext);
+    this.updateVolume();
+  }
+
+  async $beforeInsert(queryContext: QueryContext): Promise<void> {
+    await super.$beforeInsert(queryContext);
+    this.updateVolume();
+  }
+
+  updateVolume(): number {
+    this.volume = this.width * this.height * this.depth;
+    return this.volume;
+  }
 
   static tableName = 'cuboids';
 
@@ -25,6 +43,7 @@ export class Cuboid extends Base {
       },
     };
   }
+
 }
 
 export default Cuboid;
