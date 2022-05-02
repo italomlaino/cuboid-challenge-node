@@ -1,4 +1,10 @@
-import { Id, ModelOptions, QueryContext, RelationMappings } from 'objection';
+import {
+  Id,
+  ModelOptions,
+  QueryContext,
+  RelationMappings,
+  Transaction,
+} from 'objection';
 import { Bag } from './Bag';
 import Base from './Base';
 
@@ -29,6 +35,33 @@ export class Cuboid extends Base {
     return this.volume;
   }
 
+  async $afterDelete(queryContext: QueryContext): Promise<void> {
+    await super.$afterDelete(queryContext);
+    await this.updateBag(queryContext.transaction);
+  }
+
+  async $afterUpdate(
+    opt: ModelOptions,
+    queryContext: QueryContext
+  ): Promise<void> {
+    await super.$afterUpdate(opt, queryContext);
+    await this.updateBag(queryContext.transaction);
+  }
+
+  async $afterInsert(queryContext: QueryContext): Promise<void> {
+    await super.$afterInsert(queryContext);
+    await this.updateBag(queryContext.transaction);
+  }
+
+  private async updateBag(trx: Transaction) {
+    const bag = (await Bag.query(trx)
+      .findById(this.bagId as Id)
+      .forUpdate()
+      .withGraphFetched('cuboids')) as Bag;
+    bag.updateVolume();
+    await bag.$query(trx).update();
+  }
+
   static tableName = 'cuboids';
 
   static get relationMappings(): RelationMappings {
@@ -43,7 +76,6 @@ export class Cuboid extends Base {
       },
     };
   }
-
 }
 
 export default Cuboid;
