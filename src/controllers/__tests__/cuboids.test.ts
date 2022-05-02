@@ -196,9 +196,11 @@ describe('cuboid update', () => {
     );
   });
 
-  it('should succeed to update the cuboid', () => {
+  it('should succeed to update the cuboid', async () => {
     const [newWidth, newHeight, newDepth] = [5, 5, 5];
-    const response = { body: {} as Cuboid, status: HttpStatus.OK };
+    const response = await request(server)
+      .patch(urlJoin('/cuboids', cuboid.id.toString()))
+      .send({ newWidth, newHeight, newDepth });
     cuboid = response.body;
 
     expect(response.status).toBe(HttpStatus.OK);
@@ -206,19 +208,34 @@ describe('cuboid update', () => {
     expect(cuboid.height).toBe(newHeight);
     expect(cuboid.depth).toBe(newDepth);
     expect(cuboid.bag?.id).toBe(bag.id);
+
+    const updatedBag = await Bag.query()
+      .findById(bag.id)
+      .withGraphFetched('cuboids');
+    expect(updatedBag).toBeDefined();
+    expect(updatedBag?.volume).toBe(250);
+    expect(updatedBag?.availableVolume).toBe(0);
+    expect(updatedBag?.payloadVolume).toBe(250);
   });
 
-  it('should fail to update if insufficient capacity and return 422 status code', () => {
+  it('should fail to update if insufficient capacity and return 422 status code', async () => {
     const [newWidth, newHeight, newDepth] = [6, 6, 6];
-    const response = {
-      body: {} as Cuboid,
-      status: HttpStatus.UNPROCESSABLE_ENTITY,
-    };
+    const response = await request(server)
+      .patch(urlJoin('/cuboids', cuboid.id.toString()))
+      .send({ newWidth, newHeight, newDepth });
 
     expect(response.status).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
     expect(response.body.width).not.toBe(newWidth);
     expect(response.body.height).not.toBe(newHeight);
     expect(response.body.depth).not.toBe(newDepth);
+
+    const updatedBag = await Bag.query()
+      .findById(bag.id)
+      .withGraphFetched('cuboids');
+    expect(updatedBag).toBeDefined();
+    expect(updatedBag?.volume).toBe(250);
+    expect(updatedBag?.availableVolume).toBe(61);
+    expect(updatedBag?.payloadVolume).toBe(189);
   });
 });
 
