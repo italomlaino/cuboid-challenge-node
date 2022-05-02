@@ -11,6 +11,7 @@ router
   .post('/bags', bags.create)
   .get('/cuboids', cuboids.list)
   .get('/cuboids/:id', cuboids.get)
+  .patch('/cuboids/:id', cuboids.update)
   .post('/cuboids', cuboids.create);
 
 export default router;
