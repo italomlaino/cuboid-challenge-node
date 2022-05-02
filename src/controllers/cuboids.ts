@@ -54,3 +54,39 @@ export const create = async (
     return res.status(HttpStatus.CREATED).json(cuboid);
   });
 };
+
+export const update = async (
+  req: Request,
+  res: Response
+): Promise<Response> => {
+  const id = req.params.id;
+  const { newWidth, newHeight, newDepth } = req.body;
+
+  return await knex.transaction(async (trx: Transaction) => {
+    const cuboid = await Cuboid.query(trx).findById(id).withGraphFetched('bag');
+
+    if (_.isNil(cuboid)) {
+      return res.sendStatus(HttpStatus.NOT_FOUND);
+    }
+
+    const bagAvailableVolumeWithoutCuboid =
+      cuboid.bag.availableVolume + cuboid.volume;
+    const newVolume = newWidth * newHeight * newDepth;
+    if (newVolume > bagAvailableVolumeWithoutCuboid) {
+      return res
+        .status(HttpStatus.UNPROCESSABLE_ENTITY)
+        .json({ message: 'Insufficient capacity in bag' });
+    }
+
+    const updatedCuboid = await cuboid
+      .$query(trx)
+      .patchAndFetch({
+        width: newWidth,
+        height: newHeight,
+        depth: newDepth,
+      })
+      .withGraphFetched('bag');
+
+    return res.status(HttpStatus.OK).json(updatedCuboid);
+  });
+};
