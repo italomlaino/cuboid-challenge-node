@@ -237,18 +237,74 @@ describe('cuboid update', () => {
     expect(updatedBag?.availableVolume).toBe(61);
     expect(updatedBag?.payloadVolume).toBe(189);
   });
+
+  it('should fail to update if cuboid was not found and return 404 status code', async () => {
+    const [newWidth, newHeight, newDepth] = [6, 6, 6];
+    const response = await request(server)
+      .patch(urlJoin('/cuboids', '-1'))
+      .send({ newWidth, newHeight, newDepth });
+
+    expect(response.status).toBe(HttpStatus.NOT_FOUND);
+  });
 });
 
 describe('cuboid delete', () => {
-  it('should delete the cuboid', () => {
-    const response = { status: HttpStatus.OK };
+  let bag: Bag;
+  let cuboid: Cuboid;
 
-    expect(response.status).toBe(HttpStatus.OK);
+  beforeEach(async () => {
+    bag = await Bag.query().insert(
+      factories.bag.build({
+        volume: 250,
+        title: 'A bag',
+      })
+    );
+    await Cuboid.query().insert(
+      factories.cuboid.build({
+        width: 5,
+        height: 5,
+        depth: 5,
+        bagId: bag.id,
+      })
+    );
+    cuboid = await Cuboid.query().insert(
+      factories.cuboid.build({
+        width: 4,
+        height: 4,
+        depth: 4,
+        bagId: bag.id,
+      })
+    );
   });
 
-  it('should not delete and return 404 status code when cuboids doesnt exists', () => {
-    const response = { status: HttpStatus.NOT_FOUND };
+  it('should delete the cuboid', async () => {
+    const response = await request(server).delete(
+      urlJoin('/cuboids', cuboid.id.toString())
+    );
 
+    expect(response.status).toBe(HttpStatus.OK);
+
+    const existing = await Cuboid.query()
+      .findById(cuboid.id)
+      .withGraphFetched('bag');
+    expect(existing).toBeUndefined();
+
+    const updatedBag = await Bag.query()
+      .findById(bag.id)
+      .withGraphFetched('cuboids');
+    expect(updatedBag).toBeDefined();
+    expect(updatedBag?.volume).toBe(250);
+    expect(updatedBag?.availableVolume).toBe(125);
+    expect(updatedBag?.payloadVolume).toBe(125);
+  });
+
+  it('should not delete and return 404 status code when cuboids doesnt exists', async () => {
+    const response = await request(server).delete(urlJoin('/cuboids', '-1'));
     expect(response.status).toBe(HttpStatus.NOT_FOUND);
+
+    const existing = await Cuboid.query()
+      .findById(cuboid.id)
+      .withGraphFetched('bag');
+    expect(existing).toBeDefined();
   });
 });
